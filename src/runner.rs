@@ -3,8 +3,16 @@ use owo_colors::OwoColorize;
 use std::sync::Arc;
 use walkdir::WalkDir;
 
-pub struct Apps {
+pub const HEADER_TEXT: &str = r#"
+                    (o_
+        _o)         |  . :             (o-
+    \\\__/      \\\_|  : :.        \\\_\
+    <____).....<_____).:.::.......<_____).
+"#;
+
+pub struct Apps<'a> {
     apps: Vec<App>,
+    scripts_folder: &'a str,
 }
 
 struct App {
@@ -24,13 +32,16 @@ impl std::fmt::Display for App {
     }
 }
 
-impl Apps {
-    pub fn new() -> Apps {
-        Apps { apps: Vec::new() }
+impl<'a> Apps<'a> {
+    pub fn new(path: &'a str) -> Apps<'a> {
+        Apps {
+            apps: Vec::new(),
+            scripts_folder: path,
+        }
     }
 
     pub fn load_apps(&mut self) -> Option<()> {
-        let file_entries = WalkDir::new("./apps")
+        let file_entries = WalkDir::new(self.scripts_folder)
             .follow_links(true)
             .into_iter()
             .filter_map(|e| {
