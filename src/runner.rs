@@ -1,6 +1,6 @@
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use owo_colors::OwoColorize;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use walkdir::WalkDir;
 
 pub const HEADER_TEXT: &str = r#"
@@ -11,7 +11,7 @@ pub const HEADER_TEXT: &str = r#"
 "#;
 
 pub struct Apps<'a> {
-    apps: Vec<App>,
+    apps: Arc<RwLock<Vec<App>>>,
     scripts_folder: &'a str,
 }
 
@@ -35,7 +35,7 @@ impl std::fmt::Display for App {
 impl<'a> Apps<'a> {
     pub fn new(path: &'a str) -> Apps<'a> {
         Apps {
-            apps: Vec::new(),
+            apps: Arc::new(RwLock::new(Vec::new())),
             scripts_folder: path,
         }
     }
@@ -60,7 +60,7 @@ impl<'a> Apps<'a> {
             let path = entry.path().to_str()?.to_string();
             let name = entry.file_name().to_str()?.to_string();
 
-            self.apps.push(App::new(path, name));
+            self.apps.write().unwrap().push(App::new(path, name));
         }
 
         Some(())
@@ -69,7 +69,7 @@ impl<'a> Apps<'a> {
     pub fn prompt_user(&self) -> Option<Vec<usize>> {
         let selections = MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt("Pick the scripts that you want to run")
-            .items(&self.apps[..])
+            .items(&self.apps.read().unwrap()[..])
             .interact()
             .unwrap();
 
@@ -80,16 +80,14 @@ impl<'a> Apps<'a> {
         }
     }
 
-    pub fn execute(self, index_to_execute: Vec<usize>) -> Result<(), std::io::Error> {
-        let apps = Arc::new(self.apps);
+    pub fn execute(&self, index_to_execute: Vec<usize>) -> Result<(), std::io::Error> {
         let mut threads = Vec::new();
 
         for index in index_to_execute {
-            let apps = Arc::clone(&apps);
+            let apps = Arc::clone(&self.apps);
 
             let thread = std::thread::spawn(move || -> Result<(), std::io::Error> {
-                let app = &apps[index];
-                let App { path, name } = app;
+                let App { path, name } = &apps.read().unwrap()[index];
                 println!("{} {}", "Started execution of".green(), name.magenta());
                 let mut child = std::process::Command::new(path).spawn()?;
                 if child.wait()?.success() {
