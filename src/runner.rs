@@ -34,9 +34,11 @@ impl Apps {
             .follow_links(true)
             .into_iter()
             .filter_map(|e| {
-                e.ok().and_then(|e| {
-                    if e.file_type().is_file() {
-                        Some(e)
+                e.ok().and_then(|entry| {
+                    if entry.file_type().is_file()
+                        && entry.path().extension()?.to_str()?.to_lowercase() == "sh"
+                    {
+                        Some(entry)
                     } else {
                         None
                     }
