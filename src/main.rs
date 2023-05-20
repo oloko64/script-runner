@@ -14,6 +14,7 @@ fn main() -> Result<(), std::io::Error> {
         println!("\n{}", "Exiting...".yellow());
         std::process::exit(1);
     });
+    println!("v{}", env!("CARGO_PKG_VERSION"));
     println!("{}", HEADER_TEXT.magenta());
 
     let mut apps = Apps::new(&scripts_folder);
@@ -23,9 +24,11 @@ fn main() -> Result<(), std::io::Error> {
     println!();
 
     if let Some(selected) = selected {
-        apps.execute(selected)?;
+        if let Err(err) = apps.execute(selected) {
+            println!("{}", err.red());
+        }
     } else {
-        println!("{}", "No apps selected. Exiting...".yellow());
+        println!("{}", "No scripts selected. Exiting...".yellow());
     }
 
     Ok(())
