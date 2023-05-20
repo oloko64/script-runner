@@ -12,7 +12,7 @@ The order of the scripts in the selection menu is defined by the depth of the fo
 
 ### Known issues
 
-- If you `ctrl-c` during the selection the terminal can get messed up. To fix it just reset the terminal. To cancel the selection just don't select anything and press `enter`.
+- If you `ctrl-c` during the selection the terminal can get messed up. To fix it just restart the terminal. To cancel the selection just don't select anything and press `enter`.
 
 ---
 
