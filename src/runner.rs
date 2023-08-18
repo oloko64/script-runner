@@ -70,8 +70,12 @@ impl<'a> Apps<'a> {
         let selections = MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt("Pick the scripts that you want to run")
             .items(&self.apps.read().unwrap()[..])
-            .interact()
+            .interact_opt()
             .unwrap();
+
+        let Some(selections) = selections else {
+            return None;
+        };
 
         if selections.is_empty() {
             None

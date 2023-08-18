@@ -4,7 +4,7 @@ use owo_colors::OwoColorize;
 
 use crate::runner::{Apps, HEADER_TEXT};
 
-fn main() -> Result<(), std::io::Error> {
+fn main() {
     let scripts_folder = std::env::args().nth(1).unwrap_or_else(|| {
         println!("{}", "No scripts folder provided".red());
         println!(
@@ -30,6 +30,4 @@ fn main() -> Result<(), std::io::Error> {
     } else {
         println!("{}", "No scripts selected. Exiting...".yellow());
     }
-
-    Ok(())
 }
