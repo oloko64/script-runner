@@ -78,7 +78,7 @@ impl<'a> Apps<'a> {
 
     pub fn prompt_user(&self) -> Option<Vec<usize>> {
         let selections = MultiSelect::with_theme(&ColorfulTheme::default())
-            .with_prompt("Pick the scripts that you want to run")
+            .with_prompt("Pick the scripts that you want to run | press `q` to exit")
             .items(&self.apps.read().unwrap()[..])
             .interact_opt()
             .unwrap();
