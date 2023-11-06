@@ -3,12 +3,12 @@ use owo_colors::OwoColorize;
 use std::sync::{Arc, RwLock};
 use walkdir::WalkDir;
 
-pub const HEADER_TEXT: &str = r#"
+pub const HEADER_TEXT: &str = r"
                     (o_
         _o)         |  . :             (o-
     \\\__/      \\\_|  : :.        \\\_\
     <____).....<_____).:.::.......<_____).
-"#;
+";
 
 pub struct Apps<'a> {
     apps: Arc<RwLock<Vec<App>>>,
@@ -40,7 +40,7 @@ impl<'a> Apps<'a> {
         }
     }
 
-    pub fn load_apps(&mut self) -> Option<()> {
+    pub fn load_apps(&mut self) -> Result<(), String> {
         let file_entries = WalkDir::new(self.scripts_folder)
             .follow_links(true)
             .into_iter()
@@ -57,13 +57,23 @@ impl<'a> Apps<'a> {
             });
 
         for entry in file_entries {
-            let path = entry.path().to_str()?.to_string();
-            let name = entry.file_name().to_str()?.to_string();
+            let path = entry.path().to_str().map(ToString::to_string).ok_or_else(|| {
+                format!(
+                    "Failed to convert path to string: {}",
+                    entry.path().display()
+                )
+            })?;
+            let name = entry.file_name().to_str().map(ToString::to_string).ok_or_else(|| {
+                format!(
+                    "Failed to convert file name to string: {}",
+                    entry.path().display()
+                )
+            })?;
 
             self.apps.write().unwrap().push(App::new(path, name));
         }
 
-        Some(())
+        Ok(())
     }
 
     pub fn prompt_user(&self) -> Option<Vec<usize>> {
