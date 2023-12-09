@@ -1,6 +1,6 @@
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use owo_colors::OwoColorize;
-use std::sync::{Arc, RwLock};
+use std::{sync::RwLock, thread};
 use walkdir::WalkDir;
 
 pub const HEADER_TEXT: &str = r"
@@ -11,7 +11,7 @@ pub const HEADER_TEXT: &str = r"
 ";
 
 pub struct Apps<'a> {
-    apps: Arc<RwLock<Vec<App>>>,
+    apps: RwLock<Vec<App>>,
     scripts_folder: &'a str,
 }
 
@@ -35,7 +35,7 @@ impl std::fmt::Display for App {
 impl<'a> Apps<'a> {
     pub fn new(path: &'a str) -> Apps<'a> {
         Apps {
-            apps: Arc::new(RwLock::new(Vec::new())),
+            apps: RwLock::new(Vec::new()),
             scripts_folder: path,
         }
     }
@@ -57,18 +57,26 @@ impl<'a> Apps<'a> {
             });
 
         for entry in file_entries {
-            let path = entry.path().to_str().map(ToString::to_string).ok_or_else(|| {
-                format!(
-                    "Failed to convert path to string: {}",
-                    entry.path().display()
-                )
-            })?;
-            let name = entry.file_name().to_str().map(ToString::to_string).ok_or_else(|| {
-                format!(
-                    "Failed to convert file name to string: {}",
-                    entry.path().display()
-                )
-            })?;
+            let path = entry
+                .path()
+                .to_str()
+                .map(ToString::to_string)
+                .ok_or_else(|| {
+                    format!(
+                        "Failed to convert path to string: {}",
+                        entry.path().display()
+                    )
+                })?;
+            let name = entry
+                .file_name()
+                .to_str()
+                .map(ToString::to_string)
+                .ok_or_else(|| {
+                    format!(
+                        "Failed to convert file name to string: {}",
+                        entry.path().display()
+                    )
+                })?;
 
             self.apps.write().unwrap().push(App::new(path, name));
         }
@@ -95,31 +103,43 @@ impl<'a> Apps<'a> {
     }
 
     pub fn execute(&self, index_to_execute: Vec<usize>) -> Result<(), std::io::Error> {
-        let mut threads = Vec::new();
+        thread::scope(|s| {
+            let mut threads = Vec::new();
+            for index in index_to_execute {
+                let t = s.spawn(move || -> Result<(), std::io::Error> {
+                    let App { path, name } = &self.apps.read().unwrap()[index];
+                    println!(
+                        "{} {}",
+                        "Started execution of".green(),
+                        name.magenta().bold()
+                    );
+                    let mut child = std::process::Command::new(path).spawn()?;
+                    if child.wait()?.success() {
+                        println!(
+                            "{} {}",
+                            "Successfully executed".green(),
+                            name.magenta().bold()
+                        );
+                    } else {
+                        println!("{} {}", "Failed to execute".red(), name.magenta().bold());
+                    }
 
-        for index in index_to_execute {
-            let apps = Arc::clone(&self.apps);
+                    Ok(())
+                });
 
-            let thread = std::thread::spawn(move || -> Result<(), std::io::Error> {
-                let App { path, name } = &apps.read().unwrap()[index];
-                println!("{} {}", "Started execution of".green(), name.magenta());
-                let mut child = std::process::Command::new(path).spawn()?;
-                if child.wait()?.success() {
-                    println!("{} {}", "Successfully executed".green(), name.magenta());
-                } else {
-                    println!("{} {}", "Failed to execute".red(), name.magenta());
-                }
+                threads.push(t);
+            }
 
-                Ok(())
-            });
+            for thread in threads {
+                thread.join().map_err(|_| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Failed to join thread".to_string(),
+                    )
+                })??;
+            }
 
-            threads.push(thread);
-        }
-
-        for thread in threads {
-            thread.join().unwrap()?;
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
 }
