@@ -1,6 +1,6 @@
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
 use owo_colors::OwoColorize;
-use std::{sync::RwLock, thread};
+use std::thread;
 use walkdir::WalkDir;
 
 pub const HEADER_TEXT: &str = r"
@@ -11,7 +11,7 @@ pub const HEADER_TEXT: &str = r"
 ";
 
 pub struct Apps<'a> {
-    apps: RwLock<Vec<App>>,
+    apps: Vec<App>,
     scripts_folder: &'a str,
 }
 
@@ -35,12 +35,12 @@ impl std::fmt::Display for App {
 impl<'a> Apps<'a> {
     pub fn new(path: &'a str) -> Apps<'a> {
         Apps {
-            apps: RwLock::new(Vec::new()),
+            apps: Vec::new(),
             scripts_folder: path,
         }
     }
 
-    pub fn load_apps(&mut self) -> Result<(), String> {
+    pub fn load_apps(&mut self) -> Result<(), &'static str> {
         let file_entries = WalkDir::new(self.scripts_folder)
             .follow_links(true)
             .into_iter()
@@ -61,24 +61,14 @@ impl<'a> Apps<'a> {
                 .path()
                 .to_str()
                 .map(ToString::to_string)
-                .ok_or_else(|| {
-                    format!(
-                        "Failed to convert path to string: {}",
-                        entry.path().display()
-                    )
-                })?;
+                .ok_or("Failed to convert path to string")?;
             let name = entry
                 .file_name()
                 .to_str()
                 .map(ToString::to_string)
-                .ok_or_else(|| {
-                    format!(
-                        "Failed to convert file name to string: {}",
-                        entry.path().display()
-                    )
-                })?;
+                .ok_or("Failed to convert file name to string")?;
 
-            self.apps.write().unwrap().push(App::new(path, name));
+            self.apps.push(App::new(path, name));
         }
 
         Ok(())
@@ -87,18 +77,14 @@ impl<'a> Apps<'a> {
     pub fn prompt_user(&self) -> Option<Vec<usize>> {
         let selections = MultiSelect::with_theme(&ColorfulTheme::default())
             .with_prompt("Pick the scripts that you want to run | press `q` to exit")
-            .items(&self.apps.read().unwrap()[..])
+            .items(&self.apps[..])
             .interact_opt()
             .unwrap();
 
-        let Some(selections) = selections else {
-            return None;
-        };
-
-        if selections.is_empty() {
-            None
-        } else {
-            Some(selections)
+        match selections {
+            Some(selections) if selections.is_empty() => None,
+            Some(selections) => Some(selections),
+            None => None,
         }
     }
 
@@ -107,7 +93,7 @@ impl<'a> Apps<'a> {
             let mut threads = Vec::new();
             for index in index_to_execute {
                 let t = s.spawn(move || -> Result<(), std::io::Error> {
-                    let App { path, name } = &self.apps.read().unwrap()[index];
+                    let App { path, name } = &self.apps[index];
                     println!(
                         "{} {}",
                         "Started execution of".green(),
@@ -132,10 +118,7 @@ impl<'a> Apps<'a> {
 
             for thread in threads {
                 thread.join().map_err(|_| {
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Failed to join thread".to_string(),
-                    )
+                    std::io::Error::new(std::io::ErrorKind::Other, "Failed to join thread")
                 })??;
             }
 

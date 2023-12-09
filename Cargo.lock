@@ -159,7 +159,7 @@ dependencies = [
 
 [[package]]
 name = "script-runner"
-version = "0.1.330"
+version = "0.1.340"
 dependencies = [
  "dialoguer",
  "owo-colors",
